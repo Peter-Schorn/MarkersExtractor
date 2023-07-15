@@ -24,7 +24,7 @@ extension ExportProfile {
         imageLabelText: [String],
         imageLabelProperties: MarkerLabelProperties,
         logger: Logger? = nil
-    ) throws {
+    ) async throws {
         let logger = logger ?? Logger(label: "\(Self.self)")
         
         var imageLabeler: ImageLabeler?
@@ -60,7 +60,7 @@ extension ExportProfile {
             )
             
             do {
-                try AnimatedImageExtractor(conversion, logger: logger).convert()
+                try await AnimatedImageExtractor(conversion, logger: logger).convert()
             } catch {
                 throw MarkersExtractorError.runtimeError(
                     "Error while generating animated thumbnail \(outputURL.lastPathComponent.quoted):"

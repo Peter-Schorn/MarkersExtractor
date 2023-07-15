@@ -79,7 +79,7 @@ extension ExportProfile {
                     imageLabelProperties: media.imageSettings.labelProperties
                 )
             case let .animated(animatedImageFormat):
-                try Self.writeAnimatedImages(
+                try await Self.writeAnimatedImages(
                     timecodes: timecodes,
                     video: videoURL,
                     outputURL: outputURL,

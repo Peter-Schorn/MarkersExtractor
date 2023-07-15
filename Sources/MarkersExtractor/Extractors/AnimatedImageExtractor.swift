@@ -60,13 +60,14 @@ final class AnimatedImageExtractor {
 // MARK: - Convert
 
 extension AnimatedImageExtractor {
-    func convert() throws {
+
+    func convert() async throws {
         validate()
         
         // only gif is supported for now, but more formats could be added in future
         switch conversion.imageFormat {
         case .gif:
-            try generateGIF()
+            try await generateGIF()
         }
     }
     
@@ -79,7 +80,7 @@ extension AnimatedImageExtractor {
             .clamped(to: MarkersExtractor.Settings.Validation.outputFPS)
     }
     
-    private func generateGIF() throws {
+    private func generateGIF() async throws {
         let generator = imageGenerator()
         
         // TODO: this is potentially very inefficient in the event that a LOT of frames are requested (such as an entire video length)
@@ -110,15 +111,24 @@ extension AnimatedImageExtractor {
         
         let gifDestination = try initGIF(framesCount: times.count)
 
-        var result: Result<Void, Error> = .failure(.invalidSettings)
+        var result: Result<Void, Swift.Error> = .failure(Error.invalidSettings)
 
         let group = DispatchGroup()
-        group.enter()
 
-        generator.generateCGImagesAsynchronously(forTimePoints: times) { [weak self] imageResult in
-            guard let self = self else {
-                result = .failure(.invalidSettings)
+        for _ in times {
+            group.enter()
+        }
+
+        generator.generateCGImagesAsynchronously(
+            forTimePoints: times
+        ) { [weak self] imageResult in
+
+            defer {
                 group.leave()
+            }
+
+            guard let self = self else {
+                result = .failure(Error.invalidSettings)
                 return
             }
 
@@ -131,29 +141,27 @@ extension AnimatedImageExtractor {
                 )
                 if isFinished {
                     result = .success(())
-                    group.leave()
                 }
             } catch let error as AnimatedImageExtractor.Error {
                 result = .failure(error)
-                group.leave()
             } catch {
-                result = .failure(.generateFrameFailed(error))
-                group.leave()
+                result = .failure(Error.generateFrameFailed(error))
             }
         }
 
-        group.wait()
-
-        if !CGImageDestinationFinalize(gifDestination) {
-            throw Error.gifFinalizationFailed
+        return try await withCheckedThrowingContinuation { continuation in
+            group.notify(queue: .main) {
+                if !CGImageDestinationFinalize(gifDestination) {
+                    continuation.resume(
+                        throwing: Error.gifFinalizationFailed
+                    )
+                }
+                continuation.resume()
+            }
         }
 
-        switch result {
-        case let .failure(error):
-            throw error
-        case .success():
-            return
-        }
+
+
     }
 
     private func initGIF(framesCount: Int) throws -> CGImageDestination {
