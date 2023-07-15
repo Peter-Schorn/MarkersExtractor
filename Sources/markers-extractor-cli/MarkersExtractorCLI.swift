@@ -9,7 +9,8 @@ import Foundation
 import Logging
 import MarkersExtractor
 
-struct MarkersExtractorCLI: ParsableCommand {
+@main
+struct MarkersExtractorCLI: AsyncParsableCommand {
     // MARK: - Config
     
     static var configuration = CommandConfiguration(
@@ -267,7 +268,7 @@ struct MarkersExtractorCLI: ParsableCommand {
         }
     }
     
-    mutating func run() throws {
+    mutating func run() async throws {
         initLogging(logLevel: logQuiet ? nil : logLevel, logFile: log)
         
         let settings: MarkersExtractor.Settings
@@ -314,8 +315,10 @@ struct MarkersExtractorCLI: ParsableCommand {
             throw ValidationError(error)
         }
         
-        try MarkersExtractor(settings).extract()
+        try await MarkersExtractor(settings).extract()
     }
+
+
 }
 
 // MARK: Helpers
