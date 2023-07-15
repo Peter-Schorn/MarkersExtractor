@@ -30,26 +30,15 @@ final class ImagesExtractor {
 
 extension ImagesExtractor {
 
-    func convert(
-        _ completionHandler: @escaping (_ result: Result<Void, Swift.Error>) -> Void
-    ) {
-        generateImages(completionHandler)
+    func convert() async throws {
+        try await generateImages()
     }
     
     // MARK: - Helpers
 
-    private func generateImages(
-        _ completionHandler: @escaping (_ result: Result<Void, Swift.Error>) -> Void
-    ) {
+    private func generateImages() async throws {
 
-        let generator: AVAssetImageGenerator
-        do {
-            generator = try imageGenerator()
-
-        } catch {
-            completionHandler(.failure(error))
-            return
-        }
+        let generator = try imageGenerator()
 
         let times = conversion.timecodes.values.map { $0.cmTime }
         var frameNamesIterator = conversion.timecodes.keys.makeIterator()
@@ -96,8 +85,10 @@ extension ImagesExtractor {
 
         }
 
-        dispatchGroup.notify(queue: .main) {
-            completionHandler(result)
+        return try await withCheckedThrowingContinuation { continuation in
+            dispatchGroup.notify(queue: .main) {
+                continuation.resume(with: result)
+            }
         }
 
     }

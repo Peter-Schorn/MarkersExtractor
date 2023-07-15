@@ -25,11 +25,11 @@ public final class MarkersExtractor {
 
 extension MarkersExtractor {
 
-    public func extract() throws {
-        try run()
+    public func extract() async throws {
+        try await run()
     }
     
-    func run() throws {
+    func run() async throws {
         let imageFormatEXT = s.imageFormat.rawValue.uppercased()
         
         logger.info("Starting")
@@ -86,22 +86,36 @@ extension MarkersExtractor {
         let outputURL = try makeOutputPath(for: projectName)
         
         if s.noMedia {
-            logger.info("No media present. Skipping thumbnail generation.")
-            logger.info("Generating metadata file(s) into \(outputURL.path.quoted).")
+            logger.info(
+                "No media present. Skipping thumbnail generation."
+            )
+            logger.info(
+                "Generating metadata file(s) into \(outputURL.path.quoted)."
+            )
         } else {
             logger.info(
-                "Generating metadata file(s) with \(imageFormatEXT) thumbnail images into \(outputURL.path.quoted)."
+                """
+                Generating metadata file(s) with \(imageFormatEXT) thumbnail \
+                images into \(outputURL.path.quoted).
+                """
             )
         }
         
         func callExport<P: ExportProfile>(
             for format: P.Type,
             payload: P.Payload
-        ) throws {
+        ) async throws {
+
             var media: ExportMedia?
+
             if !s.noMedia {
-                let videoPath = try findMedia(name: projectName, paths: s.mediaSearchPaths)
-                logger.info("Found project media file \(videoPath.path.quoted).")
+                let videoPath = try findMedia(
+                    name: projectName,
+                    paths: s.mediaSearchPaths
+                )
+                logger.info(
+                    "Found project media file \(videoPath.path.quoted)."
+                )
                 
                 let imageQuality = Double(s.imageQuality) / 100
                 let imageLabelFontAlpha = Double(s.imageLabelFontOpacity) / 100
@@ -135,9 +149,13 @@ extension MarkersExtractor {
                     imageLabelHideNames: s.imageLabelHideNames
                 )
                 
-                media = .init(videoURL: videoPath, imageSettings: imageSettings)
+                media = ExportMedia(
+                    videoURL: videoPath,
+                    imageSettings: imageSettings
+                )
             }
-            try P(logger: logger).export(
+
+            try await P(logger: logger).export(
                 markers: markers,
                 idMode: s.idNamingMode,
                 media: media,
@@ -147,24 +165,25 @@ extension MarkersExtractor {
                 doneFilename: s.doneFilename,
                 logger: logger
             )
+
         }
         
         do {
             switch s.exportFormat {
                 case .airtable:
-                    try callExport(
+                    try await callExport(
                         for: AirtableExportProfile.self,
                         payload: .init(projectName: projectName, outputURL: outputURL)
                     )
                 case .midi:
-                    try callExport(
+                    try await callExport(
                         for: MIDIFileExportProfile.self,
                         payload: .init(projectName: projectName,
                                        outputURL: outputURL,
                                        sessionStartTimecode: projectStartTimecode)
                     )
                 case .notion:
-                    try callExport(
+                    try await callExport(
                         for: NotionExportProfile.self,
                         payload: .init(projectName: projectName, outputURL: outputURL)
                     )

@@ -27,78 +27,71 @@ extension ExportProfile {
         isSingleFrame: Bool,
         media: ExportMedia,
         outputURL: URL,
-        logger: inout Logger,
-        completion: @escaping (Result<Void, Error>) -> Void
-    ) {
+        logger: inout Logger
+    ) async throws {
 
-        do {
+        var videoURL: URL = media.videoURL
+        let videoPlaceholder: TemporaryMediaFile
 
-            var videoURL: URL = media.videoURL
-            let videoPlaceholder: TemporaryMediaFile
+        if !isVideoPresent {
+            logger.info("Media file has no video track, using video placeholder for markers.")
 
-            if !isVideoPresent {
-                logger.info("Media file has no video track, using video placeholder for markers.")
-
-                if let markerVideoPlaceholderData = EmbeddedResource.marker_video_placeholder_mov.data {
-                    videoPlaceholder = try TemporaryMediaFile(withData: markerVideoPlaceholderData)
-                    if let url = videoPlaceholder.url {
-                        videoURL = url
-                    } else {
-                        logger.warning("Could not locate or read video placeholder file.")
-                    }
+            if let markerVideoPlaceholderData = EmbeddedResource.marker_video_placeholder_mov.data {
+                videoPlaceholder = try TemporaryMediaFile(withData: markerVideoPlaceholderData)
+                if let url = videoPlaceholder.url {
+                    videoURL = url
                 } else {
                     logger.warning("Could not locate or read video placeholder file.")
                 }
+            } else {
+                logger.warning("Could not locate or read video placeholder file.")
             }
-
-            logger.info(
-                "Generating \(media.imageSettings.format.rawValue.uppercased()) images for markers."
-            )
-
-            let imageLabelText = makeImageLabelText(
-                preparedMarkers: preparedMarkers,
-                imageLabelFields: media.imageSettings.labelFields,
-                imageLabelCopyright: media.imageSettings.labelCopyright,
-                includeHeaders: !media.imageSettings.imageLabelHideNames
-            )
-
-            let timecodes = makeTimecodes(
-                markers: markers,
-                preparedMarkers: preparedMarkers,
-                isVideoPresent: isVideoPresent,
-                isSingleFrame: isSingleFrame
-            )
-
-            switch media.imageSettings.format {
-                case let .still(stillImageFormat):
-                    Self.writeStillImages(
-                        timecodes: timecodes,
-                        video: videoURL,
-                        outputURL: outputURL,
-                        imageFormat: stillImageFormat,
-                        imageJPGQuality: media.imageSettings.quality,
-                        imageDimensions: media.imageSettings.dimensions,
-                        imageLabelText: imageLabelText,
-                        imageLabelProperties: media.imageSettings.labelProperties,
-                        completion: completion
-                    )
-                case let .animated(animatedImageFormat):
-                    try Self.writeAnimatedImages(
-                        timecodes: timecodes,
-                        video: videoURL,
-                        outputURL: outputURL,
-                        gifFPS: media.imageSettings.gifFPS,
-                        gifSpan: media.imageSettings.gifSpan,
-                        gifDimensions: media.imageSettings.dimensions,
-                        imageFormat: animatedImageFormat,
-                        imageLabelText: imageLabelText,
-                        imageLabelProperties: media.imageSettings.labelProperties
-                    )
-            }
-
-        } catch {
-            completion(.failure(error))
         }
+
+        logger.info(
+            "Generating \(media.imageSettings.format.rawValue.uppercased()) images for markers."
+        )
+
+        let imageLabelText = makeImageLabelText(
+            preparedMarkers: preparedMarkers,
+            imageLabelFields: media.imageSettings.labelFields,
+            imageLabelCopyright: media.imageSettings.labelCopyright,
+            includeHeaders: !media.imageSettings.imageLabelHideNames
+        )
+
+        let timecodes = makeTimecodes(
+            markers: markers,
+            preparedMarkers: preparedMarkers,
+            isVideoPresent: isVideoPresent,
+            isSingleFrame: isSingleFrame
+        )
+
+        switch media.imageSettings.format {
+            case let .still(stillImageFormat):
+                try await Self.writeStillImages(
+                    timecodes: timecodes,
+                    video: videoURL,
+                    outputURL: outputURL,
+                    imageFormat: stillImageFormat,
+                    imageJPGQuality: media.imageSettings.quality,
+                    imageDimensions: media.imageSettings.dimensions,
+                    imageLabelText: imageLabelText,
+                    imageLabelProperties: media.imageSettings.labelProperties
+                )
+            case let .animated(animatedImageFormat):
+                try Self.writeAnimatedImages(
+                    timecodes: timecodes,
+                    video: videoURL,
+                    outputURL: outputURL,
+                    gifFPS: media.imageSettings.gifFPS,
+                    gifSpan: media.imageSettings.gifSpan,
+                    gifDimensions: media.imageSettings.dimensions,
+                    imageFormat: animatedImageFormat,
+                    imageLabelText: imageLabelText,
+                    imageLabelProperties: media.imageSettings.labelProperties
+                )
+        }
+
     }
     
     private func makeImageLabelText(

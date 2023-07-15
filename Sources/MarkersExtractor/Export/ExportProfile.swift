@@ -24,7 +24,7 @@ public protocol ExportProfile {
         createDoneFile: Bool,
         doneFilename: String,
         logger: Logger?
-    ) throws
+    ) async throws
     
     /// Converts raw FCP markers to the native format needed for export.
     /// If media is not present, pass `nil` to `mediaInfo` to bypass thumbnail generation.
