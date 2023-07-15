@@ -24,6 +24,7 @@ public final class MarkersExtractor {
 // MARK: - Run
 
 extension MarkersExtractor {
+
     public func extract() throws {
         try run()
     }
@@ -150,23 +151,23 @@ extension MarkersExtractor {
         
         do {
             switch s.exportFormat {
-            case .airtable:
-                try callExport(
-                    for: AirtableExportProfile.self,
-                    payload: .init(projectName: projectName, outputURL: outputURL)
-                )
-            case .midi:
-                try callExport(
-                    for: MIDIFileExportProfile.self,
-                    payload: .init(projectName: projectName,
-                                   outputURL: outputURL,
-                                   sessionStartTimecode: projectStartTimecode)
-                )
-            case .notion:
-                try callExport(
-                    for: NotionExportProfile.self,
-                    payload: .init(projectName: projectName, outputURL: outputURL)
-                )
+                case .airtable:
+                    try callExport(
+                        for: AirtableExportProfile.self,
+                        payload: .init(projectName: projectName, outputURL: outputURL)
+                    )
+                case .midi:
+                    try callExport(
+                        for: MIDIFileExportProfile.self,
+                        payload: .init(projectName: projectName,
+                                       outputURL: outputURL,
+                                       sessionStartTimecode: projectStartTimecode)
+                    )
+                case .notion:
+                    try callExport(
+                        for: NotionExportProfile.self,
+                        payload: .init(projectName: projectName, outputURL: outputURL)
+                    )
             }
         } catch {
             throw MarkersExtractorError.runtimeError(

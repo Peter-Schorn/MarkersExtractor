@@ -62,7 +62,8 @@ public struct FileLogHandler: LogHandler {
     public init(label: String, localFile url: URL) throws {
         self.label = label
         stream = try FileHandlerOutputStream(localFile: url)
-        queue = DispatchQueue(label: "FileLogHandler-\(label)", qos: .default)
+        // queue = DispatchQueue(label: "FileLogHandler-\(label)", qos: .default)
+        queue = DispatchQueue.main
     }
 
     public func log(

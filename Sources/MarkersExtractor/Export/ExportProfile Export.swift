@@ -11,6 +11,9 @@ import OrderedCollections
 import TimecodeKit
 
 extension ExportProfile {
+
+    // MARK: Export Entry Point
+
     public func export(
         markers: [Marker],
         idMode: MarkerIDMode,
@@ -21,6 +24,7 @@ extension ExportProfile {
         doneFilename: String,
         logger: Logger? = nil
     ) throws {
+
         var logger = logger ?? Logger(label: "\(Self.self)")
         
         var isVideoPresent = false
@@ -60,14 +64,18 @@ extension ExportProfile {
         // thumbnail images
         
         if let media {
-            try exportThumbnails(
+
+            exportThumbnails(
                 markers: markers,
                 preparedMarkers: preparedMarkers,
                 isVideoPresent: isVideoPresent,
                 isSingleFrame: isSingleFrame ?? true,
                 media: media,
                 outputURL: outputURL,
-                logger: &logger
+                logger: &logger,
+                completion: { result in
+                    print("exportThumbnails completion: \(result)")
+                }
             )
         }
         

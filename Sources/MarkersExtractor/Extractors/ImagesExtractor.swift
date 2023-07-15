@@ -29,32 +29,54 @@ final class ImagesExtractor {
 // MARK: - Convert
 
 extension ImagesExtractor {
-    func convert() throws {
-        try generateImages()
+
+    func convert(
+        _ completionHandler: @escaping (_ result: Result<Void, Swift.Error>) -> Void
+    ) {
+        generateImages(completionHandler)
     }
     
     // MARK: - Helpers
-    
-    private func generateImages() throws {
-        let generator = try imageGenerator()
+
+    private func generateImages(
+        _ completionHandler: @escaping (_ result: Result<Void, Swift.Error>) -> Void
+    ) {
+
+        let generator: AVAssetImageGenerator
+        do {
+            generator = try imageGenerator()
+
+        } catch {
+            completionHandler(.failure(error))
+            return
+        }
+
         let times = conversion.timecodes.values.map { $0.cmTime }
         var frameNamesIterator = conversion.timecodes.keys.makeIterator()
 
-        var result: Result<Void, Error> = .failure(.invalidSettings)
+        var result: Result<Void, Swift.Error> = .failure(Error.invalidSettings)
 
-        let group = DispatchGroup()
-        group.enter()
+        let dispatchGroup = DispatchGroup()
 
-        generator.generateCGImagesAsynchronously(forTimePoints: times) { [weak self] imageResult in
+        for _ in times {
+            dispatchGroup.enter()
+        }
+
+        generator.generateCGImagesAsynchronously(
+            forTimePoints: times
+        ) { [weak self] imageResult in
+
+            defer {
+                dispatchGroup.leave()
+            }
+
             guard let self = self else {
-                result = .failure(.invalidSettings)
-                group.leave()
+                result = .failure(Error.invalidSettings)
                 return
             }
 
             guard let frameName = frameNamesIterator.next() else {
-                result = .failure(.labelsDepleted)
-                group.leave()
+                result = .failure(Error.labelsDepleted)
                 return
             }
 
@@ -64,25 +86,20 @@ extension ImagesExtractor {
             )
 
             switch frameResult {
-            case let .success(finished):
-                if finished {
-                    result = .success(())
-                    group.leave()
-                }
-            case let .failure(error):
-                result = .failure(error)
-                group.leave()
+                case let .success(finished):
+                    if finished {
+                        result = .success(())
+                    }
+                case let .failure(error):
+                    result = .failure(error)
             }
+
         }
 
-        group.wait()
-
-        switch result {
-        case let .failure(error):
-            throw error
-        case .success:
-            return
+        dispatchGroup.notify(queue: .main) {
+            completionHandler(result)
         }
+
     }
 
     private func imageGenerator() throws -> AVAssetImageGenerator {
@@ -106,50 +123,51 @@ extension ImagesExtractor {
         frameName: String
     ) -> Result<Bool, Error> {
         switch result {
-        case let .success(result):
-            let image = conversion.imageFilter?(result.image) ?? result.image
+            case let .success(result):
+                let image = conversion.imageFilter?(result.image) ?? result.image
 
-            let ciContext = CIContext()
-            let ciImage = CIImage(cgImage: image)
+                let ciContext = CIContext()
+                let ciImage = CIImage(cgImage: image)
 
-            let url = conversion.outputFolder.appendingPathComponent(frameName)
+                let url = conversion.outputFolder.appendingPathComponent(frameName)
 
-            do {
-                switch conversion.frameFormat {
-                case .png:
-                    // PNG does not offer 'compression' or 'quality' options
-                    try ciContext.writePNGRepresentation(
-                        of: ciImage,
-                        to: url,
-                        format: .RGBA8,
-                        colorSpace: ciImage.colorSpace ?? CGColorSpaceCreateDeviceRGB()
-                    )
-                case .jpg:
-                    var options = [:] as [CIImageRepresentationOption: Any]
-                    
-                    if let jpgQuality = conversion.jpgQuality {
-                        options = [
-                            kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption:
-                                jpgQuality
-                        ]
+                do {
+                    switch conversion.frameFormat {
+                        case .png:
+                            // PNG does not offer 'compression' or 'quality' options
+                            try ciContext.writePNGRepresentation(
+                                of: ciImage,
+                                to: url,
+                                format: .RGBA8,
+                                colorSpace: ciImage.colorSpace ?? CGColorSpaceCreateDeviceRGB()
+                            )
+                        case .jpg:
+                            var options: [CIImageRepresentationOption: Any] = [:]
+
+                            if let jpgQuality = conversion.jpgQuality {
+                                options = [
+                                    kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption:
+                                        jpgQuality
+                                ]
+                            }
+
+                            try ciContext.writeJPEGRepresentation(
+                                of: ciImage,
+                                to: url,
+                                colorSpace: ciImage.colorSpace ?? CGColorSpaceCreateDeviceRGB(),
+                                options: options
+                            )
                     }
-                    
-                    try ciContext.writeJPEGRepresentation(
-                        of: ciImage,
-                        to: url,
-                        colorSpace: ciImage.colorSpace ?? CGColorSpaceCreateDeviceRGB(),
-                        options: options
-                    )
+                } catch {
+                    return .failure(.addFrameFailed(error))
                 }
-            } catch {
-                return .failure(.addFrameFailed(error))
-            }
 
-            return .success(result.isFinished)
-        case let .failure(error):
-            return .failure(.generateFrameFailed(error))
+                return .success(result.isFinished)
+            case let .failure(error):
+                return .failure(.generateFrameFailed(error))
         }
     }
+
 }
 
 // MARK: - Types

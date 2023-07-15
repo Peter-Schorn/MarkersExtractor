@@ -79,8 +79,9 @@ extension ExportProfile {
         imageDimensions: CGSize?,
         imageLabelText: [String],
         imageLabelProperties: MarkerLabelProperties,
-        logger: Logger? = nil
-    ) throws {
+        logger: Logger? = nil,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
         let logger = logger ?? Logger(label: "\(Self.self)")
         
         var imageLabeler: ImageLabeler?
@@ -104,11 +105,18 @@ extension ExportProfile {
         )
         
         do {
-            try ImagesExtractor(conversion, logger: logger).convert()
+            ImagesExtractor(conversion, logger: logger)
+                .convert(completion)
+
+            // .convert { result in
+            //     print("ImagesExtractore.convert result: \(result)")
+            // }
+
         } catch {
-            throw MarkersExtractorError.runtimeError(
+            let error = MarkersExtractorError.runtimeError(
                 "Error while generating images: \(error.localizedDescription)"
             )
+            completion(.failure(error))
         }
     }
 }
