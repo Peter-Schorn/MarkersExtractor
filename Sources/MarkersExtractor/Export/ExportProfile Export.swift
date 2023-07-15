@@ -23,7 +23,7 @@ extension ExportProfile {
         createDoneFile: Bool,
         doneFilename: String,
         logger: Logger? = nil
-    ) throws {
+    ) async throws {
 
         var logger = logger ?? Logger(label: "\(Self.self)")
         
@@ -65,17 +65,14 @@ extension ExportProfile {
         
         if let media {
 
-            exportThumbnails(
+            try await exportThumbnails(
                 markers: markers,
                 preparedMarkers: preparedMarkers,
                 isVideoPresent: isVideoPresent,
                 isSingleFrame: isSingleFrame ?? true,
                 media: media,
                 outputURL: outputURL,
-                logger: &logger,
-                completion: { result in
-                    print("exportThumbnails completion: \(result)")
-                }
+                logger: &logger
             )
         }
         
