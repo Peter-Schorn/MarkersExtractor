@@ -74,6 +74,8 @@ extension ImagesExtractor {
                 frameName: frameName
             )
 
+            // MARK: TODO: Collect All potential errors
+            // currently, only the last error is returned to the caller (bad idea)
             switch frameResult {
                 case let .success(finished):
                     if finished {

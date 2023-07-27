@@ -269,7 +269,8 @@ struct MarkersExtractorCLI: AsyncParsableCommand {
     }
     
     mutating func run() async throws {
-        initLogging(logLevel: logQuiet ? nil : logLevel, logFile: log)
+
+        self.initLogging(logLevel: logQuiet ? nil : logLevel, logFile: log)
         
         let settings: MarkersExtractor.Settings
         
@@ -317,7 +318,6 @@ struct MarkersExtractorCLI: AsyncParsableCommand {
         
         try await MarkersExtractor(settings).extract()
     }
-
 
 }
 
